@@ -243,7 +243,8 @@ def appButtonHandler(btn) {
             def nsn = settings.newStateName
             atomicState.internalUiState = "default"
             log.debug "Creating state: ${nsn}"
-            def newChildDevice = addChildDevice("hubitat", "Virtual Switch", "${settings.nameOverride};State;${nsn}", null, [name: "${settings.nameOverride} - ${nsn}", label: nsn, completedSetup: true, isComponent: true])
+            //def newChildDevice = addChildDevice("hubitat", "Virtual Switch", "${settings.nameOverride};State;${nsn}", null, [name: "${settings.nameOverride} - ${nsn}", label: nsn, completedSetup: true, isComponent: true])
+            def newChildDevice = addChildDevice("joelwetzel", "SSM State", "${settings.nameOverride};State;${nsn}", null, [name: "${settings.nameOverride} - ${nsn}", label: nsn, completedSetup: true, isComponent: true])
             if (!atomicState.currentState) {
                 atomicState.currentState = nsn
                 newChildDevice.on()
@@ -320,6 +321,8 @@ def eventHandler(evt) {
         def tFrom = split2[0]
         def tTo = split2[1]
         
+        //log.debug "***** ${eventName} ${tFrom} ${tTo}"
+        
         // Do we need to make this transition?
         if (eventName == tEvent &&
             currentState == tFrom) {
@@ -328,10 +331,10 @@ def eventHandler(evt) {
     }
     
     if (finalState != currentState) {
-        log.debug "Transitioning: '${currentState}' -> '${finalState}'"
+        log.info "Transitioning: '${currentState}' -> '${finalState}'"
         
-        getChildDevice("${settings.nameOverride};State;${currentState}").off()
-        getChildDevice("${settings.nameOverride};State;${finalState}").on()
+        getChildDevice("${settings.nameOverride};State;${currentState}")._off()
+        getChildDevice("${settings.nameOverride};State;${finalState}")._on()
         atomicState.currentState = finalState
     }
 }
