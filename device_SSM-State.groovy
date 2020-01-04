@@ -20,27 +20,35 @@ metadata {
         capability "Switch"
         capability "Sensor"
     }
+    
+    preferences {
+        input(name:	"enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: true,	required: true)
+    }
+}
+
+def log(msg) {
+	if (enableLogging) {
+		log.debug msg
+	}
 }
 
 def parse(String description) {
 }
 
 def installed() {
-    log.info "installed"
     sendEvent(name: "switch", value: "off", isStateChange: true)
 }
 
 def updated() {
-    log.info "updated"
 }
 
 def _on() {
-    log.info "State '${device.displayName}' activating."
+    log "State '${device.displayName}' activating."
     sendEvent(name: "switch", value: "on", isStateChange: true)
 }
 
 def _off() {
-    log.info "State '${device.displayName}' deactivating."
+    log "State '${device.displayName}' deactivating."
     sendEvent(name: "switch", value: "off", isStateChange: true)
 }
 
