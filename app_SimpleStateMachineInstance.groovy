@@ -49,14 +49,19 @@ def initialize() {
 def updated() {
 	log.info "Updated with settings: ${settings}"
 
+    bindEvents()
+	
+    atomicState.internalUiState = "default"
+}
+
+
+def bindEvents() {
     // Subscribe to events.  (These are our state machine events, NOT groovy events.)
 	unsubscribe()
     def childEvents = enumerateEvents()
     childEvents.each {
         subscribe(it, "pushed", eventHandler)
     }
-	
-    atomicState.internalUiState = "default"
 }
 
 
@@ -66,18 +71,18 @@ def mainPage() {
 			app.updateLabel(app.name)
 		}
 		section(getFormat("title", (app?.label ?: app?.name).toString())) {
-			input(name:	"nameOverride", type: "string", title: "State Machine Name", multiple: false, required: true, submitOnChange: true)
+			input(name:	"stateMachineName", type: "string", title: "State Machine Name", multiple: false, required: true, submitOnChange: true)
             
-			if (settings.nameOverride) {
-				app.updateLabel(settings.nameOverride)
+			if (settings.stateMachineName) {
+				app.updateLabel(settings.stateMachineName)
 			}
 		}
         
-        if (settings.nameOverride && settings.nameOverride.size() > 0) {
+        if (app.getInstallationState() == "COMPLETE") {
 		    section("<b>States</b>", hideable: true, hidden: false) {
                 // If they've chosen a dropdown value, delete the state
                 if (settings.stateToDeleteId) {
-                    log.debug "Removing State: ${settings.stateToDeleteId}"
+                    log.info "Removing State: ${settings.stateToDeleteId}"
                     deleteChildDevice(settings.stateToDeleteId)
                     app.removeSetting("stateToDeleteId")
                     atomicState.internalUiState = "default"
@@ -87,7 +92,7 @@ def mainPage() {
                 enumerateStates().each {
                     def currentStateDecorator = ""
                     if (it.displayName.toString() == atomicState.currentState) {
-                        currentStateDecorator = "*"
+                        currentStateDecorator = "(ACTIVE)"
                     }
                     paragraph "${it.displayName.toString()} ${currentStateDecorator}"
                 }
@@ -122,11 +127,11 @@ def mainPage() {
             }
 		}        
         
-        if (settings.nameOverride && settings.nameOverride.size() > 0) {
+        if (app.getInstallationState() == "COMPLETE") {
 		    section("<b>Events</b>", hideable: true, hidden: false) {
                 // If they've chosen a dropdown value, delete the event
                 if (settings.eventToDeleteId) {
-                    log.debug "Removing Event: ${settings.eventToDeleteId}"
+                    log.info "Removing Event: ${settings.eventToDeleteId}"
                     deleteChildDevice(settings.eventToDeleteId)
                     app.removeSetting("eventToDeleteId")
                     atomicState.internalUiState = "default"
@@ -167,11 +172,11 @@ def mainPage() {
             }
 		}        
         
-        if (settings.nameOverride && settings.nameOverride.size() > 0) {
+        if (app.getInstallationState() == "COMPLETE") {
 		    section("<b>Transitions</b>", hideable: true, hidden: false) {
                 // If they've chosen a dropdown value, delete the transition
                 if (settings.transitionToDeleteId) {
-                    log.debug "Removing Transition: ${settings.transitionToDeleteId}"
+                    log.info "Removing Transition: ${settings.transitionToDeleteId}"
                     removeTransition(settings.transitionToDeleteId)
                     app.removeSetting("transitionToDeleteId")
                     atomicState.internalUiState = "default"
@@ -227,7 +232,7 @@ def mainPage() {
 		}
         
 		section () {
-			input(name:	"enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: false,	required: true)
+			input(name:	"enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: true,	required: true)
 		}
 	}
 }
@@ -240,14 +245,13 @@ def appButtonHandler(btn) {
             atomicState.internalUiState = "creatingState"
             break
         case "btnCreateStateSubmit":
-            def nsn = settings.newStateName
+            def nsn = "State;${settings.stateMachineName};${settings.newStateName}" 
             atomicState.internalUiState = "default"
-            log.debug "Creating state: ${nsn}"
-            //def newChildDevice = addChildDevice("hubitat", "Virtual Switch", "${settings.nameOverride};State;${nsn}", null, [name: "${settings.nameOverride} - ${nsn}", label: nsn, completedSetup: true, isComponent: true])
-            def newChildDevice = addChildDevice("joelwetzel", "SSM State", "${settings.nameOverride};State;${nsn}", null, [name: "${settings.nameOverride} - ${nsn}", label: nsn, completedSetup: true, isComponent: true])
+            log.info "Creating state: ${settings.newStateName}"
+            def newChildDevice = addChildDevice("joelwetzel", "SSM State", nsn, null, [name: nsn, label: settings.newStateName, completedSetup: true, isComponent: true])
             if (!atomicState.currentState) {
-                atomicState.currentState = nsn
-                newChildDevice.on()
+                atomicState.currentState = settings.newStateName
+                newChildDevice._on()
             }
             break
         case "btnCreateStateCancel":
@@ -262,15 +266,14 @@ def appButtonHandler(btn) {
         
         case "btnCreateEvent":
             app.removeSetting("newEventName")
-            //app.removeSetting("fromState")
-            //app.removeSetting("toState")
             atomicState.internalUiState = "creatingEvent"
             break
         case "btnCreateEventSubmit":
-            def nen = settings.newEventName
+            def nen = "Event;${settings.stateMachineName};${settings.newEventName}" 
             atomicState.internalUiState = "default"
-            log.debug "Creating event: ${nen}"
-            def newChildDevice = addChildDevice("hubitat", "Virtual Button", "${settings.nameOverride};Event;${nen}", null, [name: "${settings.nameOverride} - ${nen}", label: nen, completedSetup: true, isComponent: true])
+            log.info "Creating event: ${settings.newEventName}"
+            def newChildDevice = addChildDevice("joelwetzel", "SSM Event", nen, null, [name: nen, label: settings.newEventName, completedSetup: true, isComponent: true])
+            bindEvents()
             break
         case "btnCreateEventCancel":
             atomicState.internalUiState = "default"
@@ -309,7 +312,7 @@ def eventHandler(evt) {
     def eventName = evt.getDevice().toString()
     def currentState = atomicState.currentState
     
-    log.debug "Event Triggered: ${eventName}.  Current state: ${currentState}"   
+    log "Event Triggered: ${eventName}.  Current state: ${currentState}"   
     
     def finalState = currentState
     
@@ -333,8 +336,8 @@ def eventHandler(evt) {
     if (finalState != currentState) {
         log.info "Transitioning: '${currentState}' -> '${finalState}'"
         
-        getChildDevice("${settings.nameOverride};State;${currentState}")._off()
-        getChildDevice("${settings.nameOverride};State;${finalState}")._on()
+        getChildDevice("State;${settings.stateMachineName};${currentState}")._off()
+        getChildDevice("State;${settings.stateMachineName};${finalState}")._on()
         atomicState.currentState = finalState
     }
 }
@@ -353,7 +356,7 @@ def removeTransition(transitionName) {
 def defineTransition(eventName, fromId, toId) {
     def transitionName = "${eventName};${fromId}->${toId}"
     
-    log.debug "Creating transition: ${transitionName}"
+    log.info "Creating transition: ${transitionName}"
     
     def names = atomicState.transitionNames
     names << transitionName
@@ -374,7 +377,7 @@ def enumerateStates() {
     def childStates = []
     
     getChildDevicesInCreationOrder().each {
-        if (it.deviceNetworkId.contains(";State;")) {
+        if (it.deviceNetworkId.startsWith("State;")) {
             childStates << it
         }
     }
@@ -387,7 +390,7 @@ def enumerateEvents() {
     def childEvents = []
     
     getChildDevicesInCreationOrder().each {
-        if (it.deviceNetworkId.contains(";Event;")) {
+        if (it.deviceNetworkId.startsWith("Event;")) {
             childEvents << it
         }
     }
