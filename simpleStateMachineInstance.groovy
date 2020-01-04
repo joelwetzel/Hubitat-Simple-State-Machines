@@ -43,16 +43,13 @@ def initialize() {
     atomicState.internalUiState = "default"
     
     atomicState.transitionNames = []
-    atomicState.dictTransitionEvent = [:]
-    atomicState.dictTransitionFrom = [:]
-    atomicState.dictTransitionTo = [:]
 }
 
 
 def updated() {
 	log.info "Updated with settings: ${settings}"
 
-    // Subscribe to events.  (This is our state machine events, not groovy events.)
+    // Subscribe to events.  (These are our state machine events, NOT groovy events.)
 	unsubscribe()
     def childEvents = enumerateEvents()
     childEvents.each {
@@ -61,9 +58,6 @@ def updated() {
 	
     atomicState.internalUiState = "default"
 }
-
-
-
 
 
 def mainPage() {
@@ -126,8 +120,7 @@ def mainPage() {
                     input "btnDeleteStateCancel", "button", title: "Cancel", submitOnChange: true
                 }
             }
-		}
-        
+		}        
         
         if (settings.nameOverride && settings.nameOverride.size() > 0) {
 		    section("<b>Events</b>", hideable: true, hidden: false) {
@@ -172,8 +165,7 @@ def mainPage() {
                     input "btnDeleteEventCancel", "button", title: "Cancel", submitOnChange: true
                 }
             }
-		}
-        
+		}        
         
         if (settings.nameOverride && settings.nameOverride.size() > 0) {
 		    section("<b>Transitions</b>", hideable: true, hidden: false) {
@@ -265,8 +257,7 @@ def appButtonHandler(btn) {
             break
         case "btnDeleteStateCancel":
             atomicState.internalUiState = "default"
-            break
-        
+            break        
         
         case "btnCreateEvent":
             app.removeSetting("newEventName")
@@ -288,8 +279,7 @@ def appButtonHandler(btn) {
             break
         case "btnDeleteEventCancel":
             atomicState.internalUiState = "default"
-            break
-        
+            break        
         
         case "btnCreateTransition":
             app.removeSetting("triggerEvent")
@@ -312,8 +302,6 @@ def appButtonHandler(btn) {
             break
     }
 }
-
-
 
 
 def eventHandler(evt) {
@@ -349,9 +337,6 @@ def eventHandler(evt) {
 }
 
 
-
-
-
 // ***********************
 // Utility Methods
 // ***********************
@@ -360,18 +345,6 @@ def removeTransition(transitionName) {
     def names = atomicState.transitionNames
     names.remove(transitionName)
     atomicState.transitionNames = names
-    
-    def dictEvent = atomicState.dictTransitionEvent
-    dictEvent.remove(transitionName)
-    atomicState.dictTransitionEvent = dictEvent
-    
-    def dictFrom = atomicState.dictTransitionFrom
-    dictFrom.remove(transitionName)
-    atomicState.dictTransitionFrom = dictFrom
-    
-    def dictTo = atomicState.dictTransitionTo
-    dictTo.remove(transitionName)
-    atomicState.dictTransitionTo = dictTo
 }
 
 def defineTransition(eventName, fromId, toId) {
@@ -382,37 +355,6 @@ def defineTransition(eventName, fromId, toId) {
     def names = atomicState.transitionNames
     names << transitionName
     atomicState.transitionNames = names
-    
-    setTransitionEvent(transitionName, eventName)
-    setTransitionFrom(transitionName, fromId)
-    setTransitionTo(transitionName, toId)
-}
-
-
-def setTransitionEvent(transitionName, eventName) {
-    def dict = atomicState.dictTransitionEvent
-    
-    dict[transitionName] = eventName
-    
-    atomicState.dictTransitionEvent = dict
-}
-
-
-def setTransitionFrom(transitionName, fromId) {
-    def dict = atomicState.dictTransitionFrom
-    
-    dict[transitionName] = fromId
-    
-    atomicState.dictTransitionFrom = dict
-}
-
-
-def setTransitionTo(transitionName, toId) {
-    def dict = atomicState.dictTransitionTo
-    
-    dict[transitionName] = toId
-    
-    atomicState.dictTransitionTo = dict
 }
 
 
@@ -423,6 +365,7 @@ def getChildDevicesInCreationOrder() {
 	
 	return orderedChildDevices
 }
+
 
 def enumerateStates() {
     def childStates = []
