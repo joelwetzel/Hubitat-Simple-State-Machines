@@ -186,7 +186,9 @@ def mainPage() {
                 enumerateTransitions().each {
                     paragraph "${it}"
                 }
-            
+                
+                paragraph generateTransitionTable()
+                
                 if (atomicState.internalUiState == "default") {
                     input "btnCreateTransition", "button", title: "Add Transition", submitOnChange: true
                 }
@@ -415,6 +417,66 @@ def log(msg) {
 	if (enableLogging) {
 		log.debug msg
 	}
+}
+
+
+def generateTransitionTable() {
+    def states = enumerateStates()
+    def events = enumerateEvents()
+    def transitions = enumerateTransitions()
+
+    def stateCount = states.size()
+    def tableSize = stateCount + 1
+    
+    // Initialize the table data
+    def cellValues = new String[tableSize][tableSize]
+    for (int i = 0; i < tableSize; i++) {
+        for (int j = 0; j < tableSize; j++) {
+            cellValues[i][j] = ""
+        }
+    }
+    
+    // Add the headings
+    for (int i = 0; i < stateCount; i++) {
+        cellValues[i + 1][0] = "<b>" + states[i].displayName + "</b>"
+        cellValues[0][i + 1] = "<b>" + states[i].displayName + "</b>"
+    }
+    
+    // Create a reverse lookup from state name to index
+    def stateIndices = [:]
+    for (int i = 0; i < stateCount; i++) {
+        stateIndices[states[i].displayName.toString()] = i
+    }
+    
+    // Put each transition in a cell
+    for (int i = 0; i < transitions.size(); i++) {
+        def it = transitions[i]
+        
+        // Parse the transitionNames
+        def split1 = it.split(";")
+        def tEvent = split1[0]
+        def split2 = split1[1].split("->")
+        def tFrom = split2[0]
+        def tTo = split2[1]
+        
+        
+        cellValues[stateIndices[tFrom] + 1][stateIndices[tTo] + 1] = tEvent
+    }
+    
+    // Render the table into HTML
+    def table = "<h3><b>Transition Table</b></h3><table border=1>"
+    for (int i = 0; i < tableSize; i++) {
+        table += "<tr>"
+        
+        for (int j = 0; j < tableSize; j++) {
+            table += "<td>${cellValues[i][j]}</td>"
+        }
+        
+        table += "</tr>"
+    }
+    table += "</table>"
+    
+    return table
 }
 
 
