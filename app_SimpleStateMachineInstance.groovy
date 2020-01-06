@@ -183,13 +183,9 @@ def mainPage() {
                 }
 
                 // List out the existing transitions
-                enumerateTransitions().each {
-                    paragraph "${it}"
-                }
-                
                 paragraph generateTransitionTable()
                 
-                if (atomicState.internalUiState == "default") {
+                if (atomicState.internalUiState == "default" && enumerateStates().size() >= 2 && enumerateEvents().size() >= 1) {
                     input "btnCreateTransition", "button", title: "Add Transition", submitOnChange: true
                 }
             
@@ -464,8 +460,14 @@ def generateTransitionTable() {
         cellValues[stateIndices[tFrom] + 1][stateIndices[tTo] + 1] = newCellValue
     }
     
+    // List out the transitions for the left-hand side
+    def listStr = ""
+    for (int i = 0; i < transitions.size(); i++) {
+        listStr += transitions[i] + "<br>"
+    }
+    
     // Render the table into HTML
-    def table = "<h3><b>Transition Table</b></h3><table border=1>"
+    def table = "<table border=1>"
     for (int i = 0; i < tableSize; i++) {
         table += "<tr>"
         
@@ -477,7 +479,14 @@ def generateTransitionTable() {
     }
     table += "</table>"
     
-    return table
+    def fullHtml = "<table width=100%><tr><td valign=top>${listStr}</td><td>${table}</td></tr></table>"
+    
+    if (stateCount >= 2) {
+        return fullHtml
+    }
+    else {
+        return ""
+    }
 }
 
 
