@@ -459,8 +459,9 @@ def generateTransitionTable() {
         def tFrom = split2[0]
         def tTo = split2[1]
         
-        
-        cellValues[stateIndices[tFrom] + 1][stateIndices[tTo] + 1] = tEvent
+        def oldCellValue = cellValues[stateIndices[tFrom] + 1][stateIndices[tTo] + 1]
+        def newCellValue = tEvent + (oldCellValue ? "<br>" + oldCellValue : "")    // If more than one event causes the same transition, we need to show both in the cell.
+        cellValues[stateIndices[tFrom] + 1][stateIndices[tTo] + 1] = newCellValue
     }
     
     // Render the table into HTML
