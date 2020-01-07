@@ -98,20 +98,20 @@ def mainPage() {
                 }
             
                 if (atomicState.internalUiState == "default") {
-                    input "btnCreateState", "button", title: "Add State", submitOnChange: true
+                    input "btnCreateState", "button", title: "Add State", width: 3, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "creatingState") {
                     input(name: "newStateName", type: "text", title: "New State Name", submitOnChange: true)
                     
                     if (newStateName) {
-                        input "btnCreateStateSubmit", "button", title: "Submit", submitOnChange: true
+                        input "btnCreateStateSubmit", "button", title: "Submit", width: 2, submitOnChange: true
                     }
-                    input "btnCreateStateCancel", "button", title: "Cancel", submitOnChange: true
+                    input "btnCreateStateCancel", "button", title: "Cancel", width: 10, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "default" && enumerateStates().size() > 0) {
-                    input "btnDeleteState", "button", title: "Remove State", submitOnChange: true
+                    input "btnDeleteState", "button", title: "Remove State", width: 9, submitOnChange: true
                 }
                 
                 if (atomicState.internalUiState == "deletingState") {
@@ -143,20 +143,20 @@ def mainPage() {
                 }
             
                 if (atomicState.internalUiState == "default") {
-                    input "btnCreateEvent", "button", title: "Add Event", submitOnChange: true
+                    input "btnCreateEvent", "button", title: "Add Event", width: 3, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "creatingEvent") {
                     input(name: "newEventName", type: "text", title: "New Event Name", submitOnChange: true)
                     
                     if (newEventName) {
-                        input "btnCreateEventSubmit", "button", title: "Submit", submitOnChange: true
+                        input "btnCreateEventSubmit", "button", title: "Submit", width: 2, submitOnChange: true
                     }
-                    input "btnCreateEventCancel", "button", title: "Cancel", submitOnChange: true
+                    input "btnCreateEventCancel", "button", title: "Cancel", width: 10, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "default" && enumerateEvents().size() > 0) {
-                    input "btnDeleteEvent", "button", title: "Remove Event", submitOnChange: true
+                    input "btnDeleteEvent", "button", title: "Remove Event", width: 9, submitOnChange: true
                 }
                 
                 if (atomicState.internalUiState == "deletingEvent") {
@@ -186,7 +186,7 @@ def mainPage() {
                 paragraph generateTransitionTable()
                 
                 if (atomicState.internalUiState == "default" && enumerateStates().size() >= 2 && enumerateEvents().size() >= 1) {
-                    input "btnCreateTransition", "button", title: "Add Transition", submitOnChange: true
+                    input "btnCreateTransition", "button", title: "Add Transition", width: 4, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "creatingTransition") {
@@ -203,17 +203,17 @@ def mainPage() {
     			    }
                     
                     input(name:	"triggerEvent",	type: "enum", title: "Trigger Event", multiple: false, required: false, submitOnChange: true, options: (eventOptions))
-                    input(name:	"fromState",	type: "enum", title: "From State", multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
-                    input(name:	"toState",	type: "enum", title: "To State", multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
+                    input(name:	"fromState",	type: "enum", title: "From State", width: 6, multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
+                    input(name:	"toState",	type: "enum", title: "To State", width: 6, multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
                     
                     if (triggerEvent && fromState && toState) {
-                        input "btnCreateTransitionSubmit", "button", title: "Submit", submitOnChange: true
+                        input "btnCreateTransitionSubmit", "button", title: "Submit", width: 2, submitOnChange: true
                     }
-                    input "btnCreateTransitionCancel", "button", title: "Cancel", submitOnChange: true
+                    input "btnCreateTransitionCancel", "button", title: "Cancel", width: 10, submitOnChange: true
                 }
             
                 if (atomicState.internalUiState == "default" && enumerateTransitions().size() > 0) {
-                    input "btnDeleteTransition", "button", title: "Remove Transition", submitOnChange: true
+                    input "btnDeleteTransition", "button", title: "Remove Transition", width: 8, submitOnChange: true
                 }
                 
                 if (atomicState.internalUiState == "deletingTransition") {
