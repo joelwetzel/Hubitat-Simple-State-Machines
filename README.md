@@ -8,7 +8,7 @@ I have not yet written up detailed instructions on install.  This is a BETA, and
 
 There are two custom apps and two drivers to install.
 
-The best way to learn how to use this is to watch a Youtube video I made of it.  The first 5 minutes are explaining the concepts.  Skip to 5:03 if you just want to see the demo in action.  
+The best way to learn how to use this is to watch a Youtube video I made of it.  The first 5 minutes are explaining the concepts.  Skip to 5:03 if you just want to see the demo in action.  https://www.youtube.com/watch?v=VUqijk4bMZs
 
 But until I write up full documentation, I will paste in the discussion that led me to create it:
 
