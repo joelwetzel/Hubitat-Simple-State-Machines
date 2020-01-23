@@ -19,7 +19,7 @@ definition(
     name: "Simple State Machines",
     namespace: "joelwetzel",
     author: "Joel Wetzel",
-    description: "",
+    description: "*** BETA ***",
     category: "Convenience",
 	iconUrl: "",
     iconX2Url: "",
