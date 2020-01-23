@@ -85,7 +85,7 @@ def mainPage() {
 		
 		if (state.appInstalled == 'COMPLETE') {
 			section(getFormat("title", "${app.label}")) {
-				paragraph "Lorem Ipsum Dolor Sit Amet"
+				paragraph "*** This is a BETA ***"
 			}
   			section("<b>State Machines:</b>") {
 				app(name: "anyOpenApp", appName: "Simple State Machine Instance", namespace: "joelwetzel", title: "<b>Create a new state machine</b>", multiple: true)
