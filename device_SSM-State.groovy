@@ -15,21 +15,21 @@
  */
 
 metadata {
-        definition (name: "SSM State", namespace: "joelwetzel", author: "Joel Wetzel") {
+    definition(name: "SSM State", namespace: "joelwetzel", author: "Joel Wetzel") {
         capability "Actuator"
         capability "Switch"
         capability "Sensor"
     }
-    
+
     preferences {
-        input(name:	"enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: true,	required: true)
+        input(name: "enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: true, required: true)
     }
 }
 
 def log(msg) {
-	if (enableLogging) {
-		log.debug msg
-	}
+    if (enableLogging) {
+        log.debug msg
+    }
 }
 
 def parse(String description) {

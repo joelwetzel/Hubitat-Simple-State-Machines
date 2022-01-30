@@ -15,24 +15,24 @@
  */
 
 metadata {
-    definition (name: "SSM Event", namespace: "joelwetzel", author: "Joel Wetzel") {
+    definition(name: "SSM Event", namespace: "joelwetzel", author: "Joel Wetzel") {
         capability "Actuator"
         capability "PushableButton"
         capability "Sensor"
         capability "Configuration"
-            
+
         command "push"
     }
-    
+
     preferences {
-        input(name:	"enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: false,	required: true)
+        input(name: "enableLogging", type: "bool", title: "Enable Debug Logging?", defaultValue: false, required: true)
     }
 }
 
 def log(msg) {
-	if (enableLogging) {
-		log.debug msg
-	}
+    if (enableLogging) {
+        log.debug msg
+    }
 }
 
 def parse(String description) {
@@ -54,7 +54,7 @@ def push(index) {
     if (!index) {
         index = 1
     }
-    
+
     log "pushed: ${index}"
     sendEvent(name: "pushed", value: index, isStateChange: true)
 }

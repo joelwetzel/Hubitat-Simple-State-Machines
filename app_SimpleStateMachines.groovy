@@ -16,18 +16,18 @@
 
 
 definition(
-    name: "Simple State Machines",
-    namespace: "joelwetzel",
-    author: "Joel Wetzel",
-    description: "*** BETA ***",
-    category: "Convenience",
-	iconUrl: "",
-    iconX2Url: "",
-    iconX3Url: "")
+        name: "Simple State Machines",
+        namespace: "joelwetzel",
+        author: "Joel Wetzel",
+        description: "*** BETA ***",
+        category: "Convenience",
+        iconUrl: "",
+        iconX2Url: "",
+        iconX3Url: "")
 
 
 preferences {
-     page name: "mainPage", title: "", install: true, uninstall: true
+    page name: "mainPage", title: "", install: true, uninstall: true
 }
 
 
@@ -47,52 +47,51 @@ def updated() {
 def initialize() {
     log.info "There are ${childApps.size()} child apps"
     childApps.each { child ->
-    	log.info "Child app: ${child.label}"
+        log.info "Child app: ${child.label}"
     }
 }
 
 
-def installCheck() {         
-	state.appInstalled = app.getInstallationState()
-	
-	if (state.appInstalled != 'COMPLETE') {
-		section{paragraph "Please hit 'Done' to install '${app.label}' parent app "}
-  	}
-  	else {
-    	log.info "Parent Installed OK"
-  	}
+def installCheck() {
+    state.appInstalled = app.getInstallationState()
+
+    if (state.appInstalled != 'COMPLETE') {
+        section { paragraph "Please hit 'Done' to install '${app.label}' parent app " }
+    } else {
+        log.info "Parent Installed OK"
+    }
 }
 
 
-def getFormat(type, myText=""){
-	if(type == "header-green") return "<div style='color:#ffffff;font-weight: bold;background-color:#81BC00;border: 1px solid;box-shadow: 2px 3px #A9A9A9'>${myText}</div>"
-    if(type == "line") return "\n<hr style='background-color:#1A77C9; height: 1px; border: 0;'></hr>"
-	if(type == "title") return "<h2 style='color:#1A77C9;font-weight: bold'>${myText}</h2>"
+def getFormat(type, myText = "") {
+    if (type == "header-green") return "<div style='color:#ffffff;font-weight: bold;background-color:#81BC00;border: 1px solid;box-shadow: 2px 3px #A9A9A9'>${myText}</div>"
+    if (type == "line") return "\n<hr style='background-color:#1A77C9; height: 1px; border: 0;'></hr>"
+    if (type == "title") return "<h2 style='color:#1A77C9;font-weight: bold'>${myText}</h2>"
 }
 
 
-def display(){
-	section() {
-		paragraph getFormat("line")
-		paragraph "<div style='color:#1A77C9;text-align:center'>Simple State Machines - @joelwetzel<br><a href='https://github.com/joelwetzel/' target='_blank'>Click here for more Hubitat apps/drivers on my GitHub!</a></div>"
-	}       
+def display() {
+    section() {
+        paragraph getFormat("line")
+        paragraph "<div style='color:#1A77C9;text-align:center'>Simple State Machines - @joelwetzel<br><a href='https://github.com/joelwetzel/' target='_blank'>Click here for more Hubitat apps/drivers on my GitHub!</a></div>"
+    }
 }
 
 
 def mainPage() {
     dynamicPage(name: "mainPage") {
-    	installCheck()
-		
-		if (state.appInstalled == 'COMPLETE') {
-			section(getFormat("title", "${app.label}")) {
-				paragraph "*** This is a BETA ***"
-			}
-  			section("<b>State Machines:</b>") {
-				app(name: "anyOpenApp", appName: "Simple State Machine Instance", namespace: "joelwetzel", title: "<b>Create a new state machine</b>", multiple: true)
-			}
-			display()
-		}
-	}
+        installCheck()
+
+        if (state.appInstalled == 'COMPLETE') {
+            section(getFormat("title", "${app.label}")) {
+                paragraph "*** This is a BETA ***"
+            }
+            section("<b>State Machines:</b>") {
+                app(name: "anyOpenApp", appName: "Simple State Machine Instance", namespace: "joelwetzel", title: "<b>Create a new state machine</b>", multiple: true)
+            }
+            display()
+        }
+    }
 }
 
 
