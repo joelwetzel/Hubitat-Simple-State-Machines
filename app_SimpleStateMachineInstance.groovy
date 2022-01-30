@@ -482,7 +482,7 @@ def generateTransitionTable() {
     }
     table += "</table>"
 
-    def fullHtml = "<table width=100%><tr><td valign=top>${listStr}</td><td>${table}</td></tr></table>"
+    def fullHtml = "<table width=100%><tr><td valign=top>${listStr}</td></tr><tr><td>${table}</td></tr></table>"
 
     if (stateCount >= 2) {
         return fullHtml
