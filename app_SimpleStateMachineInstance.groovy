@@ -176,8 +176,10 @@ private eventsSection() {
     section('<b>Events</b>', hideable: true, hidden: false) {
         // If they've chosen a dropdown value, delete the event
         if (settings.eventToDeleteId) {
-            //@TODO remove all transitions for this event
             log.info "Removing Event: ${settings.eventToDeleteId}"
+            def device = getChildDevice(settings.eventToDeleteId)
+            def name = device.getLabel()
+            removeTransitionsForEvent(name)
             deleteChildDevice(settings.eventToDeleteId)
             app.removeSetting('eventToDeleteId')
             setDefaultState()
@@ -236,10 +238,13 @@ private statesSection() {
     section('<b>States</b>', hideable: true, hidden: false) {
         // If they've chosen a dropdown value, delete the state
         if (settings.stateToDeleteId) {
-            //@TODO remove all transitions for this state
             log.info "Removing State: ${settings.stateToDeleteId}"
+            def device = getChildDevice(settings.stateToDeleteId)
+            def name = device.getLabel()
+            removeTransitionsForState(name)
             deleteChildDevice(settings.stateToDeleteId)
             app.removeSetting('stateToDeleteId')
+
             setDefaultState()
         }
 
@@ -380,8 +385,6 @@ def appButtonHandler(btn) {
                     device.setLabel(newLabel)
                     def transitions = enumerateTransitions()
                     def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['from', 'to'])
-                    log.debug("Old transitions ${transitions}")
-                    log.debug("New transitions ${newTransitions}")
                     atomicState.transitions = newTransitions
                 } else {
                     log.debug 'No device'
@@ -411,8 +414,6 @@ def appButtonHandler(btn) {
                     device.setLabel(newLabel)
                     def transitions = enumerateTransitions()
                     def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['event'])
-                    log.debug("Old transitions ${transitions}")
-                    log.debug("New transitions ${newTransitions}")
                     atomicState.transitions = newTransitions
                 } else {
                     log.debug 'No device'
@@ -627,4 +628,14 @@ private static Map updateNameInTransition(String oldName, String newName, Map tr
         }
     }
     transition
+}
+
+def void removeTransitionsForState(String name) {
+    def newTransitions = enumerateTransitions().findAll {it.from != name && it.to != name}
+    atomicState.transitions = newTransitions
+}
+
+def void removeTransitionsForEvent(String name) {
+    def newTransitions = enumerateTransitions().findAll {it.event != name }
+    atomicState.transitions = newTransitions
 }
