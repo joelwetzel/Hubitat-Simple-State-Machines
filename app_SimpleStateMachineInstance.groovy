@@ -371,28 +371,7 @@ def appButtonHandler(btn) {
             atomicState.internalUiState = "renamingState"
             break
         case "btnRenameStateSubmit":
-            def nsn = makeName('State', settings.newStateName)
-            if (settings.stateToRenameId) {
-                log.debug "Renaming state ${settings.stateToRenameId} to ${nsn}"
-                def device = getChildDevice(settings.stateToRenameId)
-                if (device) {
-                    String oldLabel = device.getLabel()
-                    String oldName = device.getName()
-                    String newLabel = settings.newStateName
-                    String newName = makeName('State', newLabel)
-                    device.setName(newName)
-                    device.setDeviceNetworkId(newName)
-                    device.setLabel(newLabel)
-                    def transitions = enumerateTransitions()
-                    def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['from', 'to'])
-                    atomicState.transitions = newTransitions
-                } else {
-                    log.debug 'No device'
-                }
-            } else {
-                log.debug "No state to rename"
-            }
-            setDefaultState()
+            renameState()
             break
         case "btnRenameEvent":
             app.removeSetting("newEventName")
@@ -400,28 +379,7 @@ def appButtonHandler(btn) {
             atomicState.internalUiState = "renamingEvent"
             break
         case "btnRenameEventSubmit":
-            def nsn = makeName('Event', settings.newEventName)
-            if (settings.eventToRenameId) {
-                log.debug "Renaming event ${settings.eventToRenameId} to ${nsn}"
-                def device = getChildDevice(settings.eventToRenameId)
-                if (device) {
-                    String oldLabel = device.getLabel()
-                    String oldName = device.getName()
-                    String newLabel = settings.newEventName
-                    String newName = makeName('Event', newLabel)
-                    device.setName(newName)
-                    device.setDeviceNetworkId(newName)
-                    device.setLabel(newLabel)
-                    def transitions = enumerateTransitions()
-                    def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['event'])
-                    atomicState.transitions = newTransitions
-                } else {
-                    log.debug 'No device'
-                }
-            } else {
-                log.debug "No event to rename"
-            }
-            setDefaultState()
+            renameEvent()
             break
         case 'btnCreateStateCancel':
         case 'btnDeleteStateCancel':
@@ -435,6 +393,55 @@ def appButtonHandler(btn) {
             setDefaultState()
             break
     }
+}
+
+private void renameEvent() {
+    def newEventName = makeName('Event', settings.newEventName)
+    if (settings.eventToRenameId) {
+        log.debug "Renaming event ${settings.eventToRenameId} to ${newEventName}"
+        def device = getChildDevice(settings.eventToRenameId)
+        if (device) {
+            String oldLabel = device.getLabel()
+            String newLabel = settings.newEventName
+            device.setName(newEventName)
+            device.setDeviceNetworkId(newEventName)
+            device.setLabel(newLabel)
+            def transitions = enumerateTransitions()
+            def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['event'])
+            atomicState.transitions = newTransitions
+        } else {
+            log.debug 'No device'
+        }
+    } else {
+        log.debug "No event to rename"
+    }
+    setDefaultState()
+}
+
+private void renameState() {
+    def newStateName = makeName('State', settings.newStateName) // this seems off
+    if (settings.stateToRenameId) {
+        log.debug "Renaming state ${settings.stateToRenameId} to ${newStateName}"
+        def device = getChildDevice(settings.stateToRenameId)
+        if (device) {
+            String oldLabel = device.getLabel()
+            String newLabel = settings.newStateName
+            device.setName(newStateName)
+            device.setDeviceNetworkId(newStateName)
+            device.setLabel(newLabel)
+            if (atomicState.currentState == oldLabel) {
+                atomicState.currentState = newLabel
+            }
+            def transitions = enumerateTransitions()
+            def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['from', 'to'])
+            atomicState.transitions = newTransitions
+        } else {
+            log.debug 'No device'
+        }
+    } else {
+        log.debug "No state to rename"
+    }
+    setDefaultState()
 }
 
 private void setDefaultState() {
