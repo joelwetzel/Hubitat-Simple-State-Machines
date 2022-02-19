@@ -187,7 +187,7 @@ private eventsSection() {
 
         // List out the existing child events
         enumerateEvents().each {
-            paragraph "${it.displayName.toString()}"
+            paragraph makeDeviceLink(it)
         }
 
         if (inDefaultState()) {
@@ -251,7 +251,7 @@ private statesSection() {
         // List out the existing child states
         enumerateStates().each {
             def currentStateDecorator = it.displayName.toString() == atomicState.currentState ? '(ACTIVE)' : ''
-            paragraph "${it.displayName.toString()} ${currentStateDecorator}"
+            paragraph makeDeviceLink(it) +" ${currentStateDecorator}"
         }
 
         if (inDefaultState()) {
@@ -292,6 +292,10 @@ private statesSection() {
             input 'btnRenameStateCancel', 'button', title: 'Cancel', width: 2, submitOnChange: true
         }
     }
+}
+
+private static GString makeDeviceLink(com.hubitat.app.DeviceWrapper device) {
+    return "<a href=\"/device/edit/${device.getId()}\" target=\"_blank\">${device.displayName.toString()}</a>"
 }
 
 private List<LinkedHashMap<String, Object>> stateOptionsByDNI() {
@@ -506,12 +510,12 @@ def getChildDevicesInCreationOrder() {
 }
 
 
-def enumerateStates() {
+List<com.hubitat.app.DeviceWrapper>enumerateStates() {
     getChildDevicesInCreationOrder().findAll {it.deviceNetworkId.startsWith('State;') }
 }
 
 
-def enumerateEvents() {
+List<com.hubitat.app.DeviceWrapper> enumerateEvents() {
     getChildDevicesInCreationOrder().findAll {it.deviceNetworkId.startsWith('Event;') }
 }
 
