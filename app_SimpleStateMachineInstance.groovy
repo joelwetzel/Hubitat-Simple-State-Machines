@@ -12,7 +12,12 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  **/
-definition(parent: 'joelwetzel:Simple State Machines',
+import groovy.transform.Field
+
+import java.util.regex.Pattern
+
+definition(
+        parent: 'joelwetzel:Simple State Machines',
         name: 'Simple State Machine Instance',
         namespace: 'joelwetzel',
         author: "Joel Wetzel",
@@ -31,6 +36,7 @@ def installed() {
     log.info "Installed with settings: ${settings}"
 
     initialize()
+    makeContainers()
 }
 
 
@@ -59,37 +65,47 @@ def bindEvents() {
     }
 }
 
+boolean isContainerised() { getStateContainer() != null || getEventContainer() != null }
 
 def mainPage() {
+    def hasOldStyleStates = (isInstalled() && (!isContainerised()) && (hasStates() || hasEvents()))
+
     dynamicPage(name: 'mainPage', title: '', install: true, uninstall: true) {
         if (!app.label) {
             app.updateLabel(app.name)
         }
-        def updateRequired = false
-//        if (true) {
-        if (isInstalled() && atomicState.containsKey('transitionNames') && atomicState.transitionNames.size() > 0) {
-            updateRequired = true
-            section('<b>The old transitionNames state is deprecated in favor of the transitions state</b>') {
+        def transitionUpdateRequired = isInstalled() && atomicState.containsKey('transitionNames') && atomicState.transitionNames.size() > 0
+        if (transitionUpdateRequired) {
+            section('<strong>The old transitionNames state is deprecated in favor of the transitions state</strong>') {
                 input 'btnInternalUpdate', 'button', title: 'Update internal state', width: 3, submitOnChange: true
                 input 'btnInternalUpdateCancel', 'button', title: 'Cancel', width: 3, submitOnChange: true
             }
-        }
-//        }
-        if (!updateRequired) {
-            //@TODO maybe add a button to rename the state machine if it already had a name
+        } else {
             section(getFormat('title', (app?.label ?: app?.name).toString())) {
                 input(name: 'stateMachineName', type: 'string', title: 'State Machine Name', multiple: false, required: true, submitOnChange: true)
 
                 if (settings.stateMachineName) {
-                    //@TODO rename the child devices
                     app.updateLabel(settings.stateMachineName)
                 }
             }
 
             if (isInstalled()) {
+                if (hasOldStyleStates) {
+                    section('<strong>Old version detected</strong>') {
+                        paragraph 'This state machine is using the old layout of top level states and events'
+                        paragraph 'At present the state and event devices are distributed throughout the devices page which can make them difficult to track down.'
+                        paragraph "It is strongly recommended to switch to the new hierarchical layout with the states and events as children of state and event containers as this makes it much easier to locate them on the devices page."
+                        paragraph 'To do this, go the the <strong>Mermaid export</strong> section and copy the mermaid output text, then create a new state machine and import the mermaid text.'
+                        paragraph 'Once this is done you should go through each state and event, follow the links to any apps and replace the old state and event devices with the new ones.'
+                        paragraph 'At that point you should be able to disable the old state machine (this one) and test the new one. If everything works then delete this state machine instance.'
+                    }
+                } else if (!(hasStates() || hasEvents())) {
+                    importSection()
+                }
                 statesSection()
                 eventsSection()
                 transitionsSection()
+                mermaidSection()
             }
 
             section() {
@@ -111,7 +127,6 @@ private transitionsSection() {
     section('<b>Transitions</b>', hideable: true, hidden: false) {
         // If they've chosen a dropdown value, delete the transition
         if (settings.transitionToDeleteId) {
-
             log.info "Removing Transition: ${settings.transitionToDeleteId}"
             removeTransition(settings.transitionToDeleteId)
             app.removeSetting('transitionToDeleteId')
@@ -125,7 +140,7 @@ private transitionsSection() {
             input 'btnCreateTransition', 'button', title: 'Add Transition', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'creatingTransition') {
+        if (isInState('creatingTransition')) {
             // Build a list of event options to trigger the transition
             def eventOptions = eventOptionsByName()
 
@@ -146,7 +161,7 @@ private transitionsSection() {
             input 'btnDeleteTransition', 'button', title: 'Remove Transition', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'deletingTransition') {
+        if (isInState('deletingTransition')) {
             // Build a list of the children for use by the dropdown
             def existingTransitionOptions = transitionOptions()
 
@@ -165,16 +180,41 @@ private List<LinkedHashMap<String, Object>> stateOptionsByName() {
 }
 
 private List<LinkedHashMap<Object, Object>> transitionOptions() {
-    enumerateTransitions().collect {[(it.name): it.name] }
+    enumerateTransitions().collect { [(it.name): it.name] }
 }
 
 private boolean inDefaultState() {
-    atomicState.internalUiState == 'default'
+    isInState('default')
+}
+
+private mermaidSection() {
+    section('<strong>Mermaid export</strong>', hideable: true, hidden: true) {
+        paragraph 'Mermaid is way of using structured text to draw various types of diagram'
+        if (hasTransitions()) {
+            paragraph 'Paste the following into <a href="https://mermaid.live" target="_blank">Mermaid Live Editor</a>'
+            def mermaidText = "<pre>${asMermaid(enumerateTransitions())}<pre>"
+            paragraph mermaidText
+        }
+        paragraph 'NOTE: this can also be used to transfer a Simple State Machine from one hub to another'
+    }
+}
+
+private importSection() {
+    def hasMermaidText = (settings.txtMermaid != null && settings.txtMermaid.trim() != '')
+    section('<b>Import export', hideable: true, hidden: !hasMermaidText) {
+        paragraph 'Paste the mermaid text here'
+        input(name: 'txtMermaid', type: 'textarea', title: 'Mermaid text', width: 12, height: 30, submitOnChange: true)
+        if (hasMermaidText) {
+            input 'btnMermaidImport', 'button', title: 'Import', width: 3, submitOnChange: true
+        }
+    }
 }
 
 private eventsSection() {
-    section('<b>Events</b>', hideable: true, hidden: false) {
+    section('<strong>Events</strong>', hideable: true, hidden: false) {
         // If they've chosen a dropdown value, delete the event
+        //@todo this is quite severe - should probably split into two stages - this should check how many transitions
+        //@todo will be removed and require confirmation if there are any such transitions
         if (settings.eventToDeleteId) {
             log.info "Removing Event: ${settings.eventToDeleteId}"
             def device = getChildDevice(settings.eventToDeleteId)
@@ -194,7 +234,7 @@ private eventsSection() {
             input 'btnCreateEvent', 'button', title: 'Add Event', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'creatingEvent') {
+        if (isInState('creatingEvent')) {
             input(name: 'newEventName', type: 'text', title: 'New Event Name', submitOnChange: true)
 
             if (newEventName) {
@@ -207,7 +247,7 @@ private eventsSection() {
             input 'btnDeleteEvent', 'button', title: 'Remove Event', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'deletingEvent') {
+        if (isInState('deletingEvent')) {
             // Build a list of the children for use by the dropdown
             def existingEventOptions = eventOptionsByDNI()
 
@@ -217,7 +257,7 @@ private eventsSection() {
         if (inDefaultState() && hasEvents()) {
             input 'btnRenameEvent', 'button', title: 'Rename Event', width: 2, submitOnChange: true
         }
-        if (atomicState.internalUiState == 'renamingEvent') {
+        if (isInState('renamingEvent')) {
             def existingEventOptions = eventOptionsByDNI()
 
             input(name: 'eventToRenameId', type: 'enum', title: 'Rename an event', multiple: false, required: false, submitOnChange: true, options: (existingEventOptions))
@@ -235,14 +275,12 @@ private List<LinkedHashMap<String, Object>> eventOptionsByDNI() {
 }
 
 private statesSection() {
-    section('<b>States</b>', hideable: true, hidden: false) {
+    section('<strong>States</strong>', hideable: true, hidden: false) {
         // If they've chosen a dropdown value, delete the state
         if (settings.stateToDeleteId) {
-            log.info "Removing State: ${settings.stateToDeleteId}"
-            def device = getChildDevice(settings.stateToDeleteId)
-            def name = device.getLabel()
-            removeTransitionsForState(name)
-            deleteChildDevice(settings.stateToDeleteId)
+            def stateToDelete = settings.stateToDeleteId
+            //@todo should check the number of transitions and require confirmation
+            deleteState(stateToDelete)
             app.removeSetting('stateToDeleteId')
 
             setDefaultState()
@@ -251,14 +289,14 @@ private statesSection() {
         // List out the existing child states
         enumerateStates().each {
             def currentStateDecorator = it.displayName.toString() == atomicState.currentState ? '(ACTIVE)' : ''
-            paragraph makeDeviceLink(it) +" ${currentStateDecorator}"
+            paragraph makeDeviceLink(it) + " ${currentStateDecorator}"
         }
 
         if (inDefaultState()) {
             input 'btnCreateState', 'button', title: 'Add State', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'creatingState') {
+        if (isInState('creatingState')) {
             input(name: 'newStateName', type: 'text', title: 'New State Name', submitOnChange: true)
 
             if (newStateName) {
@@ -271,27 +309,52 @@ private statesSection() {
             input 'btnDeleteState', 'button', title: 'Remove State', width: 3, submitOnChange: true
         }
 
-        if (atomicState.internalUiState == 'deletingState') {
+
+        if (isInState('deletingState')) {
             // Build a list of the children for use by the dropdown
             def existingStateOptions = stateOptionsByDNI()
 
             input(name: 'stateToDeleteId', type: 'enum', title: 'Remove a state', multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
             input 'btnDeleteStateCancel', 'button', title: 'Cancel', submitOnChange: true
         }
-        if (atomicState.internalUiState == "default" && hasStates()) {
+        if (inDefaultState() && hasStates()) {
             input "btnRenameState", "button", title: "Rename State", width: 2, submitOnChange: true
         }
-        if (atomicState.internalUiState == "renamingState") {
+        if (isInState('renamingState')) {
             def existingStateOptions = stateOptionsByDNI()
 
             input(name: 'stateToRenameId', type: 'enum', title: 'Rename a state', multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
             input(name: 'newStateName', type: 'text', title: 'New State Name', submitOnChange: true)
-            if (newStateName) {
+            if (settings.newStateName) {
                 input 'btnRenameStateSubmit', 'button', title: 'Submit', width: 2, submitOnChange: true
             }
             input 'btnRenameStateCancel', 'button', title: 'Cancel', width: 2, submitOnChange: true
         }
+        if (inDefaultState() && hasStates()) {
+            input 'btnForceActive', 'button', title: 'Force active', width: 2, submitOnChange: true
+        }
+        if (isInState('forceActiveState')) {
+            def existingStateOptions = stateOptionsByName()
+
+            input(name: 'stateToActivate', type: 'enum', title: 'Force state active', multiple: false, required: false, submitOnChange: true, options: (existingStateOptions))
+            if (settings.stateToActivate) {
+                input 'btnForceActiveSubmit', 'button', title: 'Make active', width: 2, submitOnChange: true
+            }
+            input 'btnForceActiveCancel', 'button', title: 'Cancel', width: 2, submitOnChange: true
+        }
     }
+}
+
+private boolean isInState(String theState) {
+    atomicState.internalUiState == theState
+}
+
+private void deleteState(stateToDelete) {
+    log.info "Removing State: ${stateToDelete}"
+    def device = getChildDevice(stateToDelete)
+    def name = device.getLabel()
+    removeTransitionsForState(name)
+    deleteChildDevice(stateToDelete)
 }
 
 private static GString makeDeviceLink(com.hubitat.app.DeviceWrapper device) {
@@ -318,6 +381,23 @@ private boolean hasTransitions() {
     enumerateTransitions().size() > 0
 }
 
+def createNewState(String newName) {
+    def nsn = makeStateName(newName)
+    log.info "Creating state: ${newName}"
+    def theParent = getStateContainer() ?: this
+    def newChildDevice = theParent.addChildDevice('joelwetzel', 'SSM State', nsn, [name: nsn, label: newName, completedSetup: true, isComponent: true])
+    if (!atomicState.currentState) {
+        atomicState.currentState = newName
+        newChildDevice._on()
+    }
+}
+
+def createEvent(String eventName, String ssmName) {
+    log.info "Creating event: ${eventName}"
+    def nen = makeEventName(eventName)
+    def theParent = getEventContainer() ?: this
+    theParent.addChildDevice('joelwetzel', 'SSM Event', nen, [name: nen, label: eventName, completedSetup: true, isComponent: true])
+}
 
 def appButtonHandler(btn) {
     switch (btn) {
@@ -327,64 +407,70 @@ def appButtonHandler(btn) {
             break
         case 'btnCreateState':
             app.removeSetting('newStateName')
-            atomicState.internalUiState = 'creatingState'
+            setTheState('creatingState')
             break
         case 'btnCreateStateSubmit':
-            def nsn = "State;${settings.stateMachineName};${settings.newStateName}"
             setDefaultState()
-            log.info "Creating state: ${settings.newStateName}"
-            def newChildDevice = addChildDevice('joelwetzel', 'SSM State', nsn, null, [name: nsn, label: settings.newStateName, completedSetup: true, isComponent: true])
-            if (!atomicState.currentState) {
-                atomicState.currentState = settings.newStateName
-                newChildDevice._on()
-            }
+            createNewState(settings.newStateName)
             break
         case 'btnDeleteState':
-            atomicState.internalUiState = 'deletingState'
+            setTheState('deletingState')
+            break
+        case 'btnForceActive':
+            setTheState('forceActiveState')
             break
         case 'btnCreateEvent':
             app.removeSetting('newEventName')
-            atomicState.internalUiState = 'creatingEvent'
+            setTheState('creatingEvent')
             break
         case 'btnCreateEventSubmit':
-            def nen = "Event;${settings.stateMachineName};${settings.newEventName}"
+            def nen = makeEventName(settings.newEventName)
             setDefaultState()
             log.info "Creating event: ${settings.newEventName}"
-            def newChildDevice = addChildDevice('joelwetzel', 'SSM Event', nen, null, [name: nen, label: settings.newEventName, completedSetup: true, isComponent: true])
+            createEvent(settings.newEventName, settings.stateMachineName)
+//            def newChildDevice = addChildDevice('joelwetzel', 'SSM Event', nen, null, [name: nen, label: settings.newEventName, completedSetup: true, isComponent: true])
             bindEvents()
             break
         case 'btnDeleteEvent':
-            atomicState.internalUiState = 'deletingEvent'
+            setTheState('deletingEvent')
             break
         case 'btnCreateTransition':
             app.removeSetting('triggerEvent')
             app.removeSetting('fromState')
             app.removeSetting('toState')
-            atomicState.internalUiState = 'creatingTransition'
+            setTheState('creatingTransition')
             break
         case 'btnCreateTransitionSubmit':
             setDefaultState()
             defineTransition(settings.triggerEvent, settings.fromState, settings.toState)
             break
         case 'btnDeleteTransition':
-            atomicState.internalUiState = 'deletingTransition'
+            setTheState('deletingTransition')
             break
         case "btnRenameState":
-            app.removeSetting("newStateName")
+            app.removeSetting('newStateName')
             app.removeSetting('stateToRenameId')
-            atomicState.internalUiState = "renamingState"
+            setTheState('renamingState')
             break
         case "btnRenameStateSubmit":
             renameState()
             break
-        case "btnRenameEvent":
-            app.removeSetting("newEventName")
+        case 'btnRenameEvent':
+            app.removeSetting('newEventName')
             app.removeSetting('eventToRenameId')
-            atomicState.internalUiState = "renamingEvent"
+            setTheState('renamingEvent')
             break
         case "btnRenameEventSubmit":
             renameEvent()
             break
+        case 'btnMermaidImport':
+            importMermaid(settings.txtMermaid)
+            break;
+        case 'btnForceActiveSubmit':
+            forceStateActive(settings.stateToActivate)
+            app.removeSetting('stateToActivate')
+            setDefaultState()
+            break;
         case 'btnCreateStateCancel':
         case 'btnDeleteStateCancel':
         case 'btnDeleteTransitionCancel':
@@ -392,8 +478,9 @@ def appButtonHandler(btn) {
         case 'btnCreateTransitionCancel':
         case 'btnDeleteEventCancel':
         case 'btnCreateEventCancel':
-        case "btnRenameStateCancel":
-        case "btnRenameEventCancel":
+        case 'btnRenameStateCancel':
+        case 'btnRenameEventCancel':
+        case 'btnForceActiveCancel':
             setDefaultState()
             break
     }
@@ -402,7 +489,7 @@ def appButtonHandler(btn) {
 private void renameEvent() {
     def newEventName = makeName('Event', settings.newEventName)
     if (settings.eventToRenameId) {
-        log.debug "Renaming event ${settings.eventToRenameId} to ${newEventName}"
+        log "Renaming event ${settings.eventToRenameId} to ${newEventName}"
         def device = getChildDevice(settings.eventToRenameId)
         if (device) {
             String oldLabel = device.getLabel()
@@ -414,10 +501,10 @@ private void renameEvent() {
             def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['event'])
             atomicState.transitions = newTransitions
         } else {
-            log.debug 'No device'
+            log 'No device'
         }
     } else {
-        log.debug "No event to rename"
+        log "No event to rename"
     }
     setDefaultState()
 }
@@ -425,7 +512,7 @@ private void renameEvent() {
 private void renameState() {
     def newStateName = makeName('State', settings.newStateName) // this seems off
     if (settings.stateToRenameId) {
-        log.debug "Renaming state ${settings.stateToRenameId} to ${newStateName}"
+        log "Renaming state ${settings.stateToRenameId} to ${newStateName}"
         def device = getChildDevice(settings.stateToRenameId)
         if (device) {
             String oldLabel = device.getLabel()
@@ -440,16 +527,20 @@ private void renameState() {
             def newTransitions = updateTransitions(oldLabel, newLabel, transitions, ['from', 'to'])
             atomicState.transitions = newTransitions
         } else {
-            log.debug 'No device'
+            log 'No device'
         }
     } else {
-        log.debug "No state to rename"
+        log "No state to rename"
     }
     setDefaultState()
 }
 
 private void setDefaultState() {
-    atomicState.internalUiState = 'default'
+    setTheState('default')
+}
+
+private void setTheState(String theState) {
+    atomicState.internalUiState = theState
 }
 
 def eventHandler(evt) {
@@ -461,8 +552,6 @@ def eventHandler(evt) {
     def finalState = currentState
 
     enumerateTransitions().each {
-        log.debug "***** ${it}"
-
         // Do we need to make this transition? ROB: should this continue after setting finalState?
         if (eventName == it.event && currentState == it.from) {
             finalState = it.to
@@ -472,12 +561,24 @@ def eventHandler(evt) {
     if (finalState != currentState) {
         log.info "Transitioning: '${currentState}' -> '${finalState}'"
 
-        getChildDevice("State;${settings.stateMachineName};${currentState}")._off()
-        getChildDevice("State;${settings.stateMachineName};${finalState}")._on()
-        atomicState.currentState = finalState
+        changeCurrentState(currentState, finalState)
     }
 }
 
+private void changeCurrentState(currentState, finalState) {
+    getChildState(currentState)?._off()
+    getChildState(finalState)?._on()
+    atomicState.currentState = finalState
+}
+
+private getChildState(currentState) {
+    def theParent = getStateContainer() ?: this
+    theParent.getChildDevice(makeStateName(currentState))
+}
+
+private makeStateName(String stateName) {
+    return stateName.startsWith('State;') ? stateName : "State;${settings.stateMachineName};${stateName}"
+}
 
 // ***********************
 // Utility Methods
@@ -501,31 +602,41 @@ def defineTransition(eventName, fromId, toId) {
 }
 
 
-def getChildDevicesInCreationOrder() {
-    def unorderedChildDevices = getChildDevices()
+private def getChildDevicesInCreationOrder() {
+    return orderDevices(getChildDevices())
+}
 
-    def orderedChildDevices = unorderedChildDevices.sort { a, b -> a.device.id <=> b.device.id }
+private static List<com.hubitat.app.ChildDeviceWrapper> orderDevices(unorderedChildDevices) {
+    def orderedChildDevices = unorderedChildDevices?.sort { a, b -> a.device.id <=> b.device.id }
 
-    return orderedChildDevices
+    return orderedChildDevices ?: []
 }
 
 
-List<com.hubitat.app.DeviceWrapper>enumerateStates() {
-    getChildDevicesInCreationOrder().findAll {it.deviceNetworkId.startsWith('State;') }
+private List<com.hubitat.app.ChildDeviceWrapper> enumerateStates() {
+    if (isContainerised() && (getStateContainer() != null)) {
+        orderDevices(getStateContainer()?.getChildDevices())
+    } else {
+        getChildDevicesInCreationOrder().findAll { it.deviceNetworkId.startsWith('State;') }
+    }
 }
 
 
-List<com.hubitat.app.DeviceWrapper> enumerateEvents() {
-    getChildDevicesInCreationOrder().findAll {it.deviceNetworkId.startsWith('Event;') }
+private List<com.hubitat.app.ChildDeviceWrapper> enumerateEvents() {
+    if (isContainerised() && (getEventContainer() != null)) {
+        orderDevices(getEventContainer()?.getChildDevices())
+    } else {
+        getChildDevicesInCreationOrder().findAll { it.deviceNetworkId.startsWith('Event;') }
+    }
 }
 
 
-def List<String> enumerateTransitionNames() {
+private List<String> enumerateTransitionNames() {
     atomicState.transitionNames
 }
 
 
-def getFormat(type, myText = '') {
+static def getFormat(type, myText = '') {
     if (type == 'header-green') return "<div style='color:#ffffff;font-weight: bold;background-color:#81BC00;border: 1px solid;box-shadow: 2px 3px #A9A9A9'>${myText}</div>"
     if (type == 'line') return "\n<hr style='background-color:#1A77C9; height: 1px; border: 0;'></hr>"
     if (type == 'title') return "<h2 style='color:#1A77C9;font-weight: bold'>${myText}</h2>"
@@ -539,7 +650,7 @@ def log(msg) {
 }
 
 
-def generateTransitionTable() {
+private def generateTransitionTable() {
     def states = enumerateStates()
     def transitions = enumerateTransitions()
 
@@ -641,12 +752,168 @@ private static Map updateNameInTransition(String oldName, String newName, Map tr
     transition
 }
 
-def void removeTransitionsForState(String name) {
-    def newTransitions = enumerateTransitions().findAll {it.from != name && it.to != name}
+Integer countTransitionsForState(String name) {
+    enumerateTransitions().count { it.from == name || it.to == name }
+}
+
+Integer countTransitionsForEvent(String name) {
+    enumerateTransitions().count { it.event == name }
+}
+
+void removeTransitionsForState(String name) {
+    def newTransitions = enumerateTransitions().findAll { it.from != name && it.to != name }
     atomicState.transitions = newTransitions
 }
 
-def void removeTransitionsForEvent(String name) {
-    def newTransitions = enumerateTransitions().findAll {it.event != name }
+void removeTransitionsForEvent(String name) {
+    def newTransitions = enumerateTransitions().findAll { it.event != name }
     atomicState.transitions = newTransitions
+}
+
+private importMermaid(String source) {
+    makeContainers()
+    def parts = source.split(/\n/)
+    if (parts[0] != 'stateDiagram-v2') {
+        return
+    }
+    parts.drop(0)
+    def aliases = [:]
+    parts.each {
+        importState(it, aliases)
+    }
+    log aliases
+    def events = []
+    parts.each {
+        importTransition(it, aliases)
+    }
+    bindEvents()
+}
+
+private void makeContainers() {
+    addChildDevice('joelwetzel', 'SSM StateContainer', stateContainerName, [name: stateContainerName, completedSetup: true, isComponent: !developingUpgrade()])
+    addChildDevice('joelwetzel', 'SSM EventContainer', eventContainerName, [name: eventContainerName, completedSetup: true, isComponent: !developingUpgrade()])
+}
+
+@Field statePattern = Pattern.compile(/^state\s"(?<stateName>.+)"\sas\s(?<alias>s\d{1,})$/)
+@Field transitionPattern = Pattern.compile(/^(?<initial>s\d{1,})-->(?<final>s\d{1,}):(?<event>(?:\w|\s)+)$/)
+
+def importState(String s, Map aliases) {
+    s = s.trim()
+    def stateDefMatcher = statePattern.matcher(s)
+    if (stateDefMatcher.matches()) {
+        def stateName = stateDefMatcher.group('stateName')
+        def alias = stateDefMatcher.group('alias')
+        log "Potential import state: (${stateName} as ${alias}"
+        aliases[alias] = stateName
+        createNewState(stateName)
+    }
+}
+
+def importTransition(String s, Map aliases) {
+    s = s.trim()
+    def transitionMatcher = transitionPattern.matcher(s)
+    if (transitionMatcher.matches()) {
+        def initialStateAlias = transitionMatcher.group('initial')
+        def finalStateAlias = transitionMatcher.group('final')
+        def eventName = transitionMatcher.group('event')
+        if (!hasEvent(eventName)) {
+            createEvent(eventName, settings.stateMachineName)
+        }
+        def fromName = aliases[initialStateAlias]
+        def toName = aliases[finalStateAlias]
+        defineTransition(eventName, fromName, toName)
+        log "Potential transition: (${fromName} --> ${toName}: '${eventName}'"
+    }
+}
+
+private static String indentation() { '    ' }
+
+private String asMermaid(List<Map> transitions) {
+    String mermaid = "stateDiagram-v2\n"
+//    Map<String, Integer>stateOccurences = getStateOccurences(transitions, [:])
+
+    Map<String, String> stateMap = [:]
+    //@TODO should sort the states by the number of transitions that apply in descending order
+    def stateNo = 1
+    enumerateStates().each {
+        def name = cleanupName(it.displayName.toString())
+        def stateDef = "s${stateNo++}"
+        mermaid += indentation() + "state \"${name}\" as ${stateDef}\n"
+        stateMap[name] = stateDef as String
+//        stateOccurences[name] = 0
+    }
+    log "State map: ${stateMap}"
+    transitions.each {
+        mermaid += asMermaid(it, stateMap)
+    }
+    mermaid
+}
+
+private Map<String, Integer> getStateOccurences(List<Map> transitions, Map<String, Integer> stateOccurences) {
+    transitions.each {
+        def from = it.from
+        def to = it
+        if (stateOccurences.containsKey(from)) {
+            stateOccurences[key] = stateOccurences[key] + 1
+        }
+        if (stateNames.containsKey(to)) {
+            stateOccurences[key] = stateOccurences[key] + 1
+        }
+    }
+    stateOccurences
+}
+
+private static String asMermaid(Map<String, String> transition, Map stateMap) {
+    indentation() + "${cleanupStateName(transition.from, stateMap)}-->${cleanupStateName(transition.to, stateMap)}:${cleanupName(transition.event)}\n"
+}
+
+static String cleanupName(String name) {
+    String[] parts = name.split(':')
+    (parts.size() == 1) ? name : parts[1]
+}
+
+private static String cleanupStateName(String s, Map stateMap) {
+    def name = cleanupName(s)
+    stateMap[name]
+}
+
+def getStateContainer() {
+    getChildDevices().find { it.getName() == getStateContainerName() }
+}
+
+def getEventContainer() {
+    getChildDevices().find { it.getName() == getEventContainerName() }
+}
+
+boolean developingUpgrade() { true }
+
+
+private GString getEventContainerName() {
+    "${settings.stateMachineName}:Events"
+}
+
+private GString getStateContainerName() {
+    "${settings.stateMachineName}:States"
+}
+
+private boolean hasEvent(String eventName) {
+    def eventContainer = getEventContainer()
+    if (null == eventContainer) {
+        false
+    } else {
+        def nen = makeEventName(eventName)
+        eventContainer.getChildDevice(nen)
+    }
+}
+
+private GString makeEventName(String eventName) {
+    "Event;${settings.stateMachineName};${eventName}"
+}
+
+private void forceStateActive(newState) {
+    log.info "Forcing state ${newState}"
+    def currentState = atomicState.currentState
+    if (newState != currentState) {
+        changeCurrentState(currentState, newState)
+    }
 }
